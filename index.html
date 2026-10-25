@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Rakam Tanıma: AI vs Kural Tabanlı Laboratuvarı</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="fullscreen-app">
+  <div class="background-glow glow-1"></div>
+  <div class="background-glow glow-2"></div>
+
+  <!-- ÜST SABİT NAV BAR: SADECE CANLI DEĞERLER VE GÖSTERGELER -->
+  <header class="top-navbar">
+    <div class="nav-brand">
+      <div class="brand-badge">MNIST AI LAB</div>
+      <h1 class="brand-title">Rakam Tanıma</h1>
+    </div>
+
+    <!-- Canlı Sonuç Kartları (Navbar İçi) -->
+    <div class="nav-metrics">
+      <!-- 1. AI Modeli Göstergesi -->
+      <div class="metric-badge ai-metric">
+        <div class="metric-icon">🤖</div>
+        <div class="metric-info">
+          <span class="metric-label">Yapay Zeka (YSA)</span>
+          <div class="metric-values">
+            <span class="metric-digit" id="aiDigit">-</span>
+            <span class="metric-conf" id="aiConfidence">%0 Güven</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Kural Tabanlı Motor Göstergesi -->
+      <div class="metric-badge rule-metric">
+        <div class="metric-icon">📐</div>
+        <div class="metric-info">
+          <span class="metric-label">Kural Tabanlı</span>
+          <div class="metric-values">
+            <span class="metric-digit" id="ruleDigit">-</span>
+            <span class="metric-conf" id="ruleConfidence">Güven: -</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mini Önizleme & CoM (Navbar içi) -->
+      <div class="metric-badge preview-metric">
+        <canvas id="previewCanvas" width="28" height="28"></canvas>
+        <div class="preview-mini-info">
+          <span>28x28 CoM</span>
+          <strong id="statPixels">0%</strong>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ANA GÖVDE: CANVAS ALANI VE YANDAN AÇILAN DETAY PANELİ -->
+  <div class="app-workspace" id="appWorkspace">
+    <!-- DEV CANVAS ÇALIŞMA SAHNESİ (Esnek, Ekranın Tamamını Kaplar) -->
+    <main class="canvas-stage" id="canvasStage">
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="paintCanvas"></canvas>
+        <div class="canvas-overlay-grid" id="gridOverlay"></div>
+        <div class="canvas-helper-hint" id="canvasHint">Rakamı buraya çizin</div>
+      </div>
+    </main>
+
+    <!-- SAĞDAN AÇILAN YAN PANEL (Canvas'ı Sıkıştırarak Yeniden Boyutlandırır) -->
+    <aside class="details-sidebar" id="detailsDrawer">
+      <div class="sidebar-header">
+        <h3>Detaylı Analiz & Dağılım</h3>
+        <button id="closeDrawerBtn" class="sidebar-close" title="Paneli Kapat">&times;</button>
+      </div>
+
+      <div class="sidebar-content">
+        <!-- AI Olasılık Dağılımı (0-9) -->
+        <div class="sidebar-card">
+          <div class="card-title">🤖 AI 0-9 Sınıf Olasılıkları</div>
+          <div class="bars-container" id="aiBars"></div>
+          <div class="explanation-box" id="aiExplanation">Çizim bekleniyor...</div>
+        </div>
+
+        <!-- Topoloji ve Kural Özellikleri -->
+        <div class="sidebar-card">
+          <div class="card-title">📐 Çıkarılan Geometrik Özellikler</div>
+          <div class="extracted-features" id="extractedFeatures">
+            <div class="feature-item">
+              <span class="feat-name">Kapalı Döngü (Delik):</span>
+              <span class="feat-val" id="featLoops">-</span>
+            </div>
+            <div class="feature-item">
+              <span class="feat-name">Serbest Uç Noktalar:</span>
+              <span class="feat-val" id="featEndpoints">-</span>
+            </div>
+            <div class="feature-item">
+              <span class="feat-name">Kesişim Noktaları:</span>
+              <span class="feat-val" id="featIntersections">-</span>
+            </div>
+            <div class="feature-item">
+              <span class="feat-name">Üst / Alt Kütle Oranı:</span>
+              <span class="feat-val" id="featMassRatio">-</span>
+            </div>
+            <div class="feature-item">
+              <span class="feat-name">En / Boy Oranı (Aspect):</span>
+              <span class="feat-val" id="featAspect">-</span>
+            </div>
+            <div class="feature-item">
+              <span class="feat-name">Sınır Kutu Boyutu:</span>
+              <span class="feat-val" id="statBBox">-</span>
+            </div>
+          </div>
+          <div class="explanation-box" id="ruleExplanation">Çizim bekleniyor...</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ALT SABİT KONTROL ÇUBUĞU (TEMİZLE, KALINLIK AYARI, DETAY BUTONU) -->
+  <footer class="bottom-controls-bar">
+    <div class="bottom-controls-inner">
+      <!-- Temizle Butonu -->
+      <button id="clearBtn" class="btn btn-clear">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        <span>Temizle</span>
+      </button>
+
+      <!-- Fırça Kalınlığı Ayarı -->
+      <div class="bottom-brush-control">
+        <label for="brushSize">Kalınlık:</label>
+        <input type="range" id="brushSize" min="14" max="42" value="26">
+        <span class="brush-val-badge" id="brushVal">26px</span>
+      </div>
+
+      <!-- Izgara Aç/Kapa Butonu -->
+      <button id="toggleGridBtn" class="btn-chip">Izgara</button>
+
+      <!-- Detay Aç/Kapa Butonu -->
+      <button id="infoToggleBtn" class="btn btn-detail">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+        <span>Detaylar</span>
+      </button>
+
+      <!-- Kütle Merkezi Koordinatı Rozeti -->
+      <div class="com-indicator">
+        <span id="statCenter">CoM: -</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="models_data.js"></script>
+  <script src="rule_engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
